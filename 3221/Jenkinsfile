@@ -47,7 +47,9 @@ pipeline {
             steps {
                 // jar 파일 복사
                 sh "cp ./build/libs/app-${APP_VERSION}-SNAPSHOT.jar ./${CLASS_NUM}/build/docker/app-${APP_VERSION}-SNAPSHOT.jar"
-
+                 withCredentials([usernamePassword(credentialsId: 'docker_password', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
+                        sh "echo " + '${PASSWORD}' + " | docker login -u " + '${USERNAME}' + " --password-stdin"
+                 }
                 // 도커 빌드
                 sh "docker build -t ${DOCKERHUB_USERNAME}/api-tester:${APP_VERSION} ./${CLASS_NUM}/build/docker"
             }
@@ -64,6 +66,7 @@ pipeline {
 
         stage('쿠버네티스 배포') {
             steps {
+		     withCredentials([file(credentialsId: 'k8s_master_config', variable: 'KUBECONFIG')]) {
                 // K8S 배포
                 sh "kubectl apply -f ./${CLASS_NUM}/deploy/k8s/namespace.yaml"
                 sh "kubectl apply -f ./${CLASS_NUM}/deploy/k8s/configmap.yaml"
@@ -77,6 +80,7 @@ pipeline {
                 sh "kubectl apply -f ./${CLASS_NUM}/deploy/k8s/db-service-externalname.yaml"
                 sh "kubectl apply -f ./${CLASS_NUM}/deploy/k8s/db-service-headless.yaml"
                 sh "kubectl apply -f ./${CLASS_NUM}/deploy/k8s/db-statefulset.yaml"
+		     }
             }
         }
     }
