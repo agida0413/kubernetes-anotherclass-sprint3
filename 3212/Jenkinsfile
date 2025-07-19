@@ -8,11 +8,11 @@ pipeline {
 
     environment {
         // 본인의 DockerHub username로 수정 해주세요.
-        DOCKERHUB_USERNAME = '1pro'
+        DOCKERHUB_USERNAME = 'kimyong120413'
         // 배포용 Github - Sprint3를 Fork 후 Username 변경 해주세요.
-        RELEASE_GITHUB_URL = 'https://github.com/k8s-1pro/kubernetes-anotherclass-sprint3.git'
+        RELEASE_GITHUB_URL = 'https://github.com/agida0413/kubernetes-anotherclass-sprint3.git'
         // App용 Github - Api-Tester App 소스코드를 Fork 후 Username 변경 해주세요.
-        APP_GITHUB_URL = 'https://github.com/k8s-1pro/kubernetes-anotherclass-api-tester.git'
+        APP_GITHUB_URL = 'https://github.com/agida0413/kubernetes-anotherclass-api-tester.git'
 
         APP_VERSION = '3.0.0'
         // 실습 넘버링
@@ -47,6 +47,10 @@ pipeline {
             steps {
                 // jar 파일 복사
                 sh "cp ./build/libs/app-${APP_VERSION}-SNAPSHOT.jar ./${CLASS_NUM}/build/docker/app-${APP_VERSION}-SNAPSHOT.jar"
+                    // 도커 빌드 - [1] 중요 데이터 암호화 관리
+                    withCredentials([usernamePassword(credentialsId: 'docker_password', passwordVariable: 'PASSWORD', usernameVariable: 'USERNAME')]) {
+                        sh "echo " + '${PASSWORD}' + " | docker login -u " + '${USERNAME}' + " --password-stdin"
+                    }
 
                 // 도커 빌드
                 sh "docker build -t ${DOCKERHUB_USERNAME}/api-tester:${APP_VERSION} ./${CLASS_NUM}/build/docker"
@@ -64,6 +68,8 @@ pipeline {
 
         stage('쿠버네티스 배포') {
             steps {
+	 withCredentials([file(credentialsId: 'k8s_master_config', variable: 'KUBECONFIG')]) {
+
                 // K8S 배포
                 sh "kubectl apply -f ./${CLASS_NUM}/deploy/k8s/namespace.yaml"
                 sh "kubectl apply -f ./${CLASS_NUM}/deploy/k8s/configmap.yaml"
@@ -71,6 +77,7 @@ pipeline {
                 sh "kubectl apply -f ./${CLASS_NUM}/deploy/k8s/service.yaml"
                 sh "kubectl apply -f ./${CLASS_NUM}/deploy/k8s/deployment.yaml"
             }
+	 }
         }
     }
 }
